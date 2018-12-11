@@ -31,7 +31,7 @@ where
     let raw_json = Box::new(
         base64::decode_config(&s, base64::URL_SAFE_NO_PAD).map_err::<Error, _>(Into::into)?,
     );
-    serde_json::from_slice::<T>(Box::leak(raw_json)).map_err::<Error, _>(Into::into)
+    serde_json::from_slice::<T>(Box::leak::<'a>(raw_json)).map_err::<Error, _>(Into::into)
 }
 
 impl From<base64::DecodeError> for Error {
