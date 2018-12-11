@@ -7,7 +7,7 @@ pub struct Decoded<H, P> {
     payload: P,
 }
 
-pub fn decode<'a, H, P>(jwt: String) -> Result<String, Error>
+pub fn decode<'a, H, P>(jwt: String) -> Result<Decoded<H, P>, Error>
 where
     H: serde::Deserialize<'a>,
     P: serde::Deserialize<'a>,
@@ -18,21 +18,20 @@ where
         return Err(Error::from(ErrorKind::WrongToken));
     }
 
-    let _decoded = Decoded {
-        header: base64_to_json::<'a, H>(&splitted[0])?,
-        payload: base64_to_json::<'a, P>(&splitted[1])?,
-    };
-    Ok("hoge".to_owned())
+    Ok(Decoded {
+        header: token_to_rust_data::<'a, H>(splitted[0].to_owned())?,
+        payload: token_to_rust_data::<'a, P>(splitted[1].to_owned())?,
+    })
 }
 
-fn base64_to_json<'a, T>(s: &str) -> Result<T, Error>
+fn token_to_rust_data<'a, T>(s: String) -> Result<T, Error>
 where
     T: serde::Deserialize<'a>,
 {
-    let byte_array: Result<Vec<u8>, Error> =
-        base64::decode_config(&s, base64::URL_SAFE_NO_PAD).map_err(Into::into);
-    let decoded: Result<&str, Error> = std::str::from_utf8(&byte_array?).map_err(Into::into);
-    serde_json::from_str::<T>(&decoded?).map_err(Into::into)
+    let raw_json = Box::new(
+        base64::decode_config(&s, base64::URL_SAFE_NO_PAD).map_err::<Error, _>(Into::into)?,
+    );
+    serde_json::from_slice::<T>(Box::leak(raw_json)).map_err::<Error, _>(Into::into)
 }
 
 impl From<base64::DecodeError> for Error {
