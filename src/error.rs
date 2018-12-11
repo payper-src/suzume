@@ -8,6 +8,14 @@ pub enum ErrorKind {
     WrongToken,
 }
 
+impl From<reqwest::Error> for Error {
+    fn from(error: reqwest::Error) -> Error {
+        Error {
+            inner: error.context(ErrorKind::FetchFailed),
+        }
+    }
+}
+
 // #[cfg(test)]
 // mod tests {
 //     #[test]
