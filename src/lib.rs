@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate serde_derive;
 
+mod decode;
 mod error;
 mod fetcher;
 
-pub use self::error::Error;
+pub use self::error::{Error, ErrorKind};
 pub use self::fetcher::{Jwks, JwksFetcher};
 
 pub fn verify<'a, P>(jwt: String) -> Result<P, Error>
