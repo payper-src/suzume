@@ -7,6 +7,7 @@ mod fetcher;
 
 pub use self::error::{Error, ErrorKind};
 pub use self::fetcher::{Jwks, JwksFetcher};
+pub use self::decode::{from_raw_jwt};
 
 pub fn verify<'a, P>(jwt: String) -> Result<P, Error>
 where
