@@ -17,8 +17,13 @@ where
     P: serde::de::DeserializeOwned,
     F: KeyFetcher,
 {
-    let (_, payload, _) = from_raw_jwt::<H, P>(jwt)?;
-    Ok(payload)
+    let (_header, payload, (plain, signature)) = from_raw_jwt::<H, P>(&jwt)?;
+    let key = F::fetch(&payload)?;
+    if key.verify(plain, signature)? {
+        Ok(payload)
+    } else {
+        Err(ErrorKind::ValidationFail.into())
+    }
 }
 
 #[cfg(test)]
@@ -31,7 +36,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_test() -> Result<(), failure::Error>{
+    fn verify_success() -> Result<(), failure::Error>{
         #[derive(Debug, Serialize, Deserialize)]
         struct MyHeader {
             som: String,
@@ -46,13 +51,16 @@ mod tests {
 
         struct MyKey;
 
-        impl super::Key for MyKey {}
+        impl super::Key for MyKey {
+            fn verify(self, _: &str, _: &str) -> Result<bool, crate::Error> {
+                Ok(true)
+            }
+        }
 
         impl super::KeyFetcher for MyFetcher {
             type Key = MyKey;
             fn fetch<P>(_: P) -> Result<Self::Key, crate::Error> 
-            {
-                Ok(MyKey)
+            { Ok(MyKey)
             }
         }
 

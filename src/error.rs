@@ -6,6 +6,8 @@ pub enum ErrorKind {
     FetchFailed,
     #[fail(display = "Wrong token")]
     WrongToken,
+    #[fail(display = "Validation Fail")]
+    ValidationFail,
 }
 
 impl From<reqwest::Error> for Error {
