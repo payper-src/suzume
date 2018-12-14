@@ -5,19 +5,30 @@ mod decode;
 mod error;
 mod key;
 mod jwks;
+mod payload;
 
 pub use self::error::{Error, ErrorKind};
 pub use self::key::{Key, KeyFetcher};
 pub use self::jwks::{Jwk, Jwks};
+pub use self::payload::{Payload};
 use self::decode::{from_raw_jwt};
 
 pub fn verify<H, P, F>(jwt: String) -> Result<P, Error>
 where
     H: serde::de::DeserializeOwned,
-    P: serde::de::DeserializeOwned,
+    P: Payload + serde::de::DeserializeOwned,
     F: KeyFetcher,
 {
     let (_header, payload, plain, signature) = from_raw_jwt::<H, P>(&jwt)?;
+
+    if payload.is_expired() {
+        return Err(ErrorKind::ExpiredToken.into())
+    }
+
+    if payload.is_not_before() {
+        return Err(ErrorKind::NotBefore.into())
+    }
+
     let key = F::fetch(&payload)?;
     if key.verify(plain, signature)? {
         Ok(payload)
@@ -45,6 +56,17 @@ mod tests {
         #[derive(Debug, PartialEq, Serialize, Deserialize)]
         struct MyPayload {
             iss: String,
+            exp: i64,
+        }
+
+        impl crate::Payload for MyPayload {
+            fn get_exp(&self) -> Option<i64> {
+                Some(self.exp)
+            }
+
+            fn is_not_before(&self) -> bool {
+                false
+            }
         }
 
         struct MyFetcher;
@@ -71,6 +93,7 @@ mod tests {
 
         let my_payload = MyPayload {
             iss: "https://example.com".to_owned(),
+            exp: time::now_utc().to_timespec().sec + time::Duration::days(1).num_seconds()
         };
 
         let jwt = {
