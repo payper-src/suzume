@@ -4,15 +4,15 @@ use failure::Fail;
 
 use super::{Error, ErrorKind};
 
-pub fn from_raw_jwt<'a, H, P>(jwt: &'a str) -> Result<(H, P, &'a str, &'a str), Error>
+pub fn from_raw_jwt<'a, H, P>(jwt: &'a str) -> Result<(H, P, (&'a str, &'a str)), Error>
 where
     H: serde::de::DeserializeOwned,
     P: serde::de::DeserializeOwned,
 {
-    let (signature, plain) = split_jwt(&jwt)?;
-    let (header, payload) = split_plain(&plain)?;
+    let (verify_target, signature) = split_jwt(&jwt)?;
+    let (header, payload) = from_decoded(&verify_target)?;
 
-    Ok((header, payload, plain, signature))
+    Ok((header, payload, (verify_target, signature)))
 }
 
 const DELIMITER: &str = ".";
@@ -22,17 +22,16 @@ fn split_jwt(jwt: &str) -> Result<(&str, &str), Error> {
     if splitted.len() != 2 {
         return Err(Error::from(ErrorKind::WrongToken));
     } else {
-        Ok((splitted[0], splitted[1]))
+        Ok((splitted[1], splitted[0]))
     }
 }
 
-fn split_plain<H, P>(plain: &str) -> Result<(H, P), Error>
+fn from_decoded<H, P>(encoded: &str) -> Result<(H, P), Error>
 where
     H: serde::de::DeserializeOwned,
     P: serde::de::DeserializeOwned,
 {
-    const DELIMITER: &str = ".";
-    let splitted = plain.split(DELIMITER).collect::<Vec<&str>>();
+    let splitted = encoded.split(DELIMITER).collect::<Vec<&str>>();
     if splitted.len() != 2 {
         return Err(Error::from(ErrorKind::WrongToken));
     } else {
@@ -69,10 +68,10 @@ mod tests {
         let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\
                    .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ\
                    .SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
-        let raw_plain = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ";
+        let raw_verify_target = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ";
         let raw_signature = "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
 
-        assert_eq!(super::split_jwt(jwt)?, (raw_signature, raw_plain));
+        assert_eq!(super::split_jwt(jwt)?, (raw_verify_target, raw_signature));
         Ok(())
     }
 }

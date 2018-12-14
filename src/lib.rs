@@ -17,7 +17,7 @@ where
     P: serde::de::DeserializeOwned,
     F: KeyFetcher,
 {
-    let (_header, payload, plain, signature) = from_raw_jwt::<H, P>(&jwt)?;
+    let (_header, payload, (plain, signature)) = from_raw_jwt::<H, P>(&jwt)?;
     let key = F::fetch(&payload)?;
     if key.verify(plain, signature)? {
         Ok(payload)
