@@ -19,7 +19,7 @@ where
     P: Payload + serde::de::DeserializeOwned,
     F: KeyFetcher,
 {
-    let (_header, payload, plain, signature) = from_raw_jwt::<H, P>(&jwt)?;
+    let (_header, payload, (plain, signature)) = from_raw_jwt::<H, P>(&jwt)?;
 
     if payload.is_expired() {
         return Err(ErrorKind::ExpiredToken.into())
@@ -82,8 +82,7 @@ mod tests {
         impl super::KeyFetcher for MyFetcher {
             type Key = MyKey;
             fn fetch<P>(_: P) -> Result<Self::Key, crate::Error> 
-            {
-                Ok(MyKey)
+            { Ok(MyKey)
             }
         }
 
