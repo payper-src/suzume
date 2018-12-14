@@ -4,16 +4,6 @@ use failure::Fail;
 
 use super::{Error, ErrorKind};
 
-pub struct Decoded<H, P>
-where
-    H: serde::de::DeserializeOwned,
-    P: serde::de::DeserializeOwned,
-{
-    header: H,
-    payload: P,
-    signature: String,
-}
-
 fn split_jwt(jwt: &str) -> Result<Vec<&str>, Error> {
     const DELIMITER: &str = ".";
     let splitted = jwt.split(DELIMITER).collect::<Vec<&str>>();
@@ -33,18 +23,18 @@ where
     serde_json::from_slice::<T>(&decoded).map_err::<Error, _>(Into::into)
 }
 
-pub fn from_raw_jwt<H, P>(jwt: String) -> Result<Decoded<H, P>, Error>
+pub fn from_raw_jwt<H, P>(jwt: String) -> Result<(H, P, String), Error>
 where
     H: serde::de::DeserializeOwned,
     P: serde::de::DeserializeOwned,
 {
     let splitted = split_jwt(&jwt)?;
 
-    Ok(Decoded {
-        header: decode(splitted[0])?,
-        payload: decode(splitted[1])?,
-        signature: splitted[2].to_owned(),
-    })
+    Ok((
+        decode::<H>(splitted[0])?,
+        decode::<P>(splitted[1])?,
+        splitted[2].to_owned(),
+    ))
 }
 
 impl From<base64::DecodeError> for Error {
@@ -61,19 +51,6 @@ impl From<serde_json::error::Error> for Error {
 
 #[cfg(test)]
 mod tests {
-
-    #[derive(Deserialize)]
-    struct Header {
-        alg: String,
-        typ: String,
-    }
-
-    #[derive(Deserialize)]
-    struct Payload {
-        sub: i32,
-        name: String,
-        iat: i32,
-    }
 
     #[test]
     fn split_jwt() -> Result<(), super::Error> {
