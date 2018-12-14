@@ -4,6 +4,17 @@ use failure::Fail;
 
 use super::{Error, ErrorKind};
 
+pub fn from_raw_jwt<'a, H, P>(jwt: &'a str) -> Result<(H, P, &'a str, &'a str), Error>
+where
+    H: serde::de::DeserializeOwned,
+    P: serde::de::DeserializeOwned,
+{
+    let (signature, plain) = split_jwt(&jwt)?;
+    let (header, payload) = split_plain(&plain)?;
+
+    Ok((header, payload, plain, signature))
+}
+
 const DELIMITER: &str = ".";
 
 fn split_jwt(jwt: &str) -> Result<(&str, &str), Error> {
@@ -36,17 +47,6 @@ where
     let decoded =
         base64::decode_config(s, base64::URL_SAFE_NO_PAD).map_err::<Error, _>(Into::into)?;
     serde_json::from_slice::<T>(&decoded).map_err::<Error, _>(Into::into)
-}
-
-pub fn from_raw_jwt<'a, H, P>(jwt: &'a str) -> Result<(H, P, &'a str, &'a str), Error>
-where
-    H: serde::de::DeserializeOwned,
-    P: serde::de::DeserializeOwned,
-{
-    let (signature, plain) = split_jwt(&jwt)?;
-    let (header, payload) = split_plain(&plain)?;
-
-    Ok((header, payload, plain, signature))
 }
 
 impl From<base64::DecodeError> for Error {
