@@ -1,4 +1,6 @@
-pub trait Key {}
+pub trait Key {
+    fn verify(self, plain: &str, string: &str) -> Result<bool, crate::Error>;
+}
 
 pub trait KeyFetcher {
     type Key: Key;

@@ -4,13 +4,28 @@ use failure::Fail;
 
 use super::{Error, ErrorKind};
 
-fn split_jwt(jwt: &str) -> Result<Vec<&str>, Error> {
-    const DELIMITER: &str = ".";
-    let splitted = jwt.split(DELIMITER).collect::<Vec<&str>>();
-    if splitted.len() != 3 {
+const DELIMITER: &str = ".";
+
+fn split_jwt(jwt: &str) -> Result<(&str, &str), Error> {
+    let splitted = jwt.rsplitn(2, DELIMITER).collect::<Vec<&str>>();
+    if splitted.len() != 2 {
         return Err(Error::from(ErrorKind::WrongToken));
     } else {
-        Ok(splitted)
+        Ok((splitted[0], splitted[1]))
+    }
+}
+
+fn split_plain<H, P>(plain: &str) -> Result<(H, P), Error>
+where
+    H: serde::de::DeserializeOwned,
+    P: serde::de::DeserializeOwned,
+{
+    const DELIMITER: &str = ".";
+    let splitted = plain.split(DELIMITER).collect::<Vec<&str>>();
+    if splitted.len() != 2 {
+        return Err(Error::from(ErrorKind::WrongToken));
+    } else {
+        Ok((decode(splitted[0])?, decode(splitted[1])?))
     }
 }
 
@@ -23,18 +38,15 @@ where
     serde_json::from_slice::<T>(&decoded).map_err::<Error, _>(Into::into)
 }
 
-pub fn from_raw_jwt<H, P>(jwt: String) -> Result<(H, P, String), Error>
+pub fn from_raw_jwt<'a, H, P>(jwt: &'a str) -> Result<(H, P, &'a str, &'a str), Error>
 where
     H: serde::de::DeserializeOwned,
     P: serde::de::DeserializeOwned,
 {
-    let splitted = split_jwt(&jwt)?;
+    let (signature, plain) = split_jwt(&jwt)?;
+    let (header, payload) = split_plain(&plain)?;
 
-    Ok((
-        decode::<H>(splitted[0])?,
-        decode::<P>(splitted[1])?,
-        splitted[2].to_owned(),
-    ))
+    Ok((header, payload, plain, signature))
 }
 
 impl From<base64::DecodeError> for Error {
@@ -57,15 +69,10 @@ mod tests {
         let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\
                    .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ\
                    .SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
-        let raw_header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
-        let raw_payload =
-            "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ";
+        let raw_plain = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ";
         let raw_signature = "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
 
-        assert_eq!(
-            super::split_jwt(jwt)?,
-            vec![raw_header, raw_payload, raw_signature]
-        );
+        assert_eq!(super::split_jwt(jwt)?, (raw_signature, raw_plain));
         Ok(())
     }
 }
