@@ -6,6 +6,10 @@ pub enum ErrorKind {
     FetchFailed,
     #[fail(display = "Wrong token")]
     WrongToken,
+    #[fail(display = "Token is expired")]
+    ExpiredToken,
+    #[fail(display = "Token has been not enable yet")]
+    NotBefore,
     #[fail(display = "Validation Fail")]
     ValidationFail,
 }
