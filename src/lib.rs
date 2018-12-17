@@ -7,7 +7,7 @@ mod key;
 mod jwks;
 mod payload;
 
-pub use self::error::{Error, ErrorKind};
+pub use self::error::{Error, ErrorKind, PayloadItem};
 pub use self::key::{Key, KeyFetcher};
 pub use self::jwks::{Jwk, Jwks};
 pub use self::payload::{Payload};
@@ -74,14 +74,14 @@ mod tests {
         struct MyKey;
 
         impl super::Key for MyKey {
-            fn verify(self, _: &str, _: &str) -> Result<bool, crate::Error> {
+            fn verify(self, _: &str, _: Vec<u8>) -> Result<bool, crate::Error> {
                 Ok(true)
             }
         }
 
         impl super::KeyFetcher for MyFetcher {
             type Key = MyKey;
-            fn fetch<P>(_: P) -> Result<Self::Key, crate::Error> 
+            fn fetch<P>(_: &P) -> Result<Self::Key, crate::Error> 
             { Ok(MyKey)
             }
         }
@@ -109,6 +109,96 @@ mod tests {
 
         let payload = super::verify::<MyHeader, MyPayload, MyFetcher>(jwt)?;
         assert_eq!(payload, my_payload);
+
+        Ok(())
+    }
+
+    #[test]
+    fn verify_auth0_jwt() -> Result<(), failure::Error>{
+        use openssl::pkey::{self, PKey};
+        use openssl::hash::MessageDigest;
+        use openssl::sign::{Verifier};
+        use failure::Fail;
+
+        #[derive(Debug, Serialize, Deserialize)]
+        struct Auth0Header {
+            typ: String,
+            alg: String,
+            kid: String,
+        }
+
+        #[derive(Debug, Serialize, Deserialize)]
+        struct Auth0Payload {
+            iss: String,
+            sub: String,
+            aud: String,
+            iat: i64,
+            exp: i64,
+            azp: String,
+            scope: String,
+        }
+
+        impl crate::Payload for Auth0Payload {
+            fn get_iss(&self) -> Option<String> {
+                Some(self.iss.clone())
+            }
+        }
+
+        struct RSAPublicKey {
+            inner: PKey<pkey::Public>
+        };
+
+        impl RSAPublicKey {
+            fn new(iss: String) -> Result<Self, crate::Error> {
+                let url = std::path::Path::new(&iss).join(".well-known").join("jwks.json");
+                let jwks = reqwest::get(url.to_str().unwrap())?.json::<crate::Jwks>()?;
+                let key = {
+                    let x509_auth = base64::decode(jwks.keys.iter().next().ok_or(crate::Error::from(crate::ErrorKind::NotFoundJwks))?.x5c.iter().next().ok_or(crate::Error::from(crate::ErrorKind::NotFoundx5c))?)?;
+                    openssl::x509::X509::from_der(x509_auth.as_ref())?
+        .public_key()?
+                };
+                Ok(
+                RSAPublicKey {
+                    inner: key,
+                })
+            }
+        }
+
+        impl crate::Key for RSAPublicKey {
+            fn verify(self, verify_target: &str, signature: Vec<u8>) -> Result<bool, crate::Error> {
+                let mut verifier = Verifier::new(MessageDigest::sha256(), &self.inner)?;
+                verifier.update(verify_target.as_bytes())?;
+                Ok(verifier.verify(&signature)?)
+            }
+        }
+
+        struct Auth0Fetcher;
+
+        impl crate::KeyFetcher for Auth0Fetcher {
+            type Key = RSAPublicKey;
+            fn fetch<P>(payload: &P) -> Result<Self::Key, crate::Error> 
+            where
+                P: crate::Payload,
+            {
+                if let Some(iss) = payload.get_iss() {
+                    Ok(RSAPublicKey::new(iss)?)
+                } else {
+                    Err(crate::ErrorKind::NotFoundItem {
+                        item: crate::PayloadItem::ISS,
+                    }.into())
+                }
+            }
+        }
+
+        impl From<openssl::error::ErrorStack> for crate::Error {
+            fn from(origin: openssl::error::ErrorStack) -> crate::Error {
+                crate::Error::new(origin.context(crate::ErrorKind::OpenSSLError))
+            }
+        }
+
+        let valid_auth0_jwt = include_str!("test_files/valid_auth0_jwt").trim();
+
+        let _ = crate::verify::<Auth0Header, Auth0Payload, Auth0Fetcher>(valid_auth0_jwt.to_owned())?;
 
         Ok(())
     }

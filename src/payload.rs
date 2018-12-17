@@ -1,4 +1,8 @@
 pub trait Payload {
+    fn get_iss(&self) -> Option<String> {
+        None
+    }
+
     fn get_exp(&self) -> Option<i64> {
         None
     }
