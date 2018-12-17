@@ -6,8 +6,25 @@ pub enum ErrorKind {
     FetchFailed,
     #[fail(display = "Wrong token")]
     WrongToken,
+    #[fail(display = "Token is expired")]
+    ExpiredToken,
+    #[fail(display = "Token has been not enable yet")]
+    NotBefore,
     #[fail(display = "Validation Fail")]
     ValidationFail,
+    #[fail(display = "Not Found Item: {:?}", item)]
+    NotFoundItem { item: PayloadItem },
+    #[fail(display = "Not Found jwk's key")]
+    NotFoundJwks,
+    #[fail(display = "Not Found x5c")]
+    NotFoundx5c,
+    #[fail(display = "Open SSL Error")]
+    OpenSSLError,
+}
+
+#[derive(Debug)]
+pub enum PayloadItem {
+    ISS,
 }
 
 impl From<reqwest::Error> for Error {
