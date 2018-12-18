@@ -190,9 +190,9 @@ mod tests {
             }
         }
 
-        let valid_auth0_jwt = include_str!("test_files/example_jwt").trim();
+        let valid_self_signed_jwt = include_str!("test_files/example_jwt").trim();
 
-        let _ = crate::verify::<MyHeader, MyPayload, MyFetcher>(valid_auth0_jwt.to_owned())?;
+        let _ = crate::verify::<MyHeader, MyPayload, MyFetcher>(valid_self_signed_jwt.to_owned())?;
 
         Ok(())
     }
