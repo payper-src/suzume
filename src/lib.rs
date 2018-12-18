@@ -137,6 +137,15 @@ mod tests {
         }
 
         impl crate::Payload for MyPayload {
+
+            fn is_expired(&self) -> bool {
+                false
+            }
+
+            fn is_not_before(&self) -> bool {
+                false
+            }
+
         }
 
         struct RSAPublicKey {
