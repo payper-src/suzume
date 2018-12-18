@@ -11,7 +11,7 @@ pub trait Payload {
         if let Some(exp) = self.get_exp() {
             exp < time::now_utc().to_timespec().sec
         } else {
-            false
+            true
         }
     }
 
@@ -23,7 +23,7 @@ pub trait Payload {
         if let Some(nbf) = self.get_nbf() {
             nbf >= time::now_utc().to_timespec().sec
         } else {
-            false
+            true
         }
     }
 }

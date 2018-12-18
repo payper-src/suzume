@@ -82,7 +82,8 @@ mod tests {
         impl super::KeyFetcher for MyFetcher {
             type Key = MyKey;
             fn fetch<P>(_: &P) -> Result<Self::Key, crate::Error> 
-            { Ok(MyKey)
+            {
+                Ok(MyKey)
             }
         }
 
