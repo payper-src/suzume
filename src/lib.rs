@@ -176,7 +176,7 @@ mod tests {
 
         impl crate::KeyFetcher for MyFetcher {
             type Key = RSAPublicKey;
-            fn fetch<P>(payload: &P) -> Result<Self::Key, crate::Error> 
+            fn fetch<P>(_payload: &P) -> Result<Self::Key, crate::Error> 
             where
                 P: crate::Payload,
             {
