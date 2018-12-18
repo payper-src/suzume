@@ -114,34 +114,28 @@ mod tests {
     }
 
     #[test]
-    fn verify_auth0_jwt() -> Result<(), failure::Error>{
+    fn verify_self_signed_jwt() -> Result<(), failure::Error>{
         use openssl::pkey::{self, PKey};
         use openssl::hash::MessageDigest;
         use openssl::sign::{Verifier};
         use failure::Fail;
 
         #[derive(Debug, Serialize, Deserialize)]
-        struct Auth0Header {
+        struct MyHeader {
             typ: String,
             alg: String,
-            kid: String,
         }
 
         #[derive(Debug, Serialize, Deserialize)]
-        struct Auth0Payload {
-            iss: String,
+        struct MyPayload {
             sub: String,
-            aud: String,
             iat: i64,
             exp: i64,
             azp: String,
             scope: String,
         }
 
-        impl crate::Payload for Auth0Payload {
-            fn get_iss(&self) -> Option<String> {
-                Some(self.iss.clone())
-            }
+        impl crate::Payload for MyPayload {
         }
 
         struct RSAPublicKey {
@@ -149,14 +143,10 @@ mod tests {
         };
 
         impl RSAPublicKey {
-            fn new(iss: String) -> Result<Self, crate::Error> {
-                let url = std::path::Path::new(&iss).join(".well-known").join("jwks.json");
-                let jwks = reqwest::get(url.to_str().unwrap())?.json::<crate::Jwks>()?;
-                let key = {
-                    let x509_auth = base64::decode(jwks.keys.iter().next().ok_or(crate::Error::from(crate::ErrorKind::NotFoundJwks))?.x5c.iter().next().ok_or(crate::Error::from(crate::ErrorKind::NotFoundx5c))?)?;
-                    openssl::x509::X509::from_der(x509_auth.as_ref())?
-        .public_key()?
-                };
+            fn new() -> Result<Self, crate::Error> {
+                let crt = include_str!("test_files/example.crt");
+                let key = openssl::x509::X509::from_pem(crt.as_ref())?
+        .public_key()?;
                 Ok(
                 RSAPublicKey {
                     inner: key,
@@ -172,21 +162,15 @@ mod tests {
             }
         }
 
-        struct Auth0Fetcher;
+        struct MyFetcher;
 
-        impl crate::KeyFetcher for Auth0Fetcher {
+        impl crate::KeyFetcher for MyFetcher {
             type Key = RSAPublicKey;
             fn fetch<P>(payload: &P) -> Result<Self::Key, crate::Error> 
             where
                 P: crate::Payload,
             {
-                if let Some(iss) = payload.get_iss() {
-                    Ok(RSAPublicKey::new(iss)?)
-                } else {
-                    Err(crate::ErrorKind::NotFoundItem {
-                        item: crate::PayloadItem::ISS,
-                    }.into())
-                }
+                Ok(RSAPublicKey::new()?)
             }
         }
 
@@ -196,9 +180,9 @@ mod tests {
             }
         }
 
-        let valid_auth0_jwt = include_str!("test_files/valid_auth0_jwt").trim();
+        let valid_auth0_jwt = include_str!("test_files/example_jwt").trim();
 
-        let _ = crate::verify::<Auth0Header, Auth0Payload, Auth0Fetcher>(valid_auth0_jwt.to_owned())?;
+        let _ = crate::verify::<MyHeader, MyPayload, MyFetcher>(valid_auth0_jwt.to_owned())?;
 
         Ok(())
     }
