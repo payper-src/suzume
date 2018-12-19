@@ -7,7 +7,7 @@ mod key;
 mod jwks;
 mod payload;
 
-pub use self::error::{Error, ErrorKind};
+pub use self::error::{Error, ErrorKind, PayloadItem};
 pub use self::key::{Key, KeyFetcher};
 pub use self::jwks::{Jwk, Jwks};
 pub use self::payload::{Payload};
@@ -74,14 +74,14 @@ mod tests {
         struct MyKey;
 
         impl super::Key for MyKey {
-            fn verify(self, _: &str, _: &str) -> Result<bool, crate::Error> {
+            fn verify(self, _: &str, _: Vec<u8>) -> Result<bool, crate::Error> {
                 Ok(true)
             }
         }
 
         impl super::KeyFetcher for MyFetcher {
             type Key = MyKey;
-            fn fetch<P>(_: P) -> Result<Self::Key, crate::Error> 
+            fn fetch<P>(_: &P) -> Result<Self::Key, crate::Error> 
             {
                 Ok(MyKey)
             }
@@ -110,6 +110,89 @@ mod tests {
 
         let payload = super::verify::<MyHeader, MyPayload, MyFetcher>(jwt)?;
         assert_eq!(payload, my_payload);
+
+        Ok(())
+    }
+
+    #[test]
+    fn verify_self_signed_jwt() -> Result<(), failure::Error>{
+        use openssl::pkey::{self, PKey};
+        use openssl::hash::MessageDigest;
+        use openssl::sign::{Verifier};
+        use failure::Fail;
+
+        #[derive(Debug, Serialize, Deserialize)]
+        struct MyHeader {
+            typ: String,
+            alg: String,
+        }
+
+        #[derive(Debug, Serialize, Deserialize)]
+        struct MyPayload {
+            sub: String,
+            iat: i64,
+            exp: i64,
+            azp: String,
+            scope: String,
+        }
+
+        impl crate::Payload for MyPayload {
+
+            fn is_expired(&self) -> bool {
+                false
+            }
+
+            fn is_not_before(&self) -> bool {
+                false
+            }
+
+        }
+
+        struct RSAPublicKey {
+            inner: PKey<pkey::Public>
+        };
+
+        impl RSAPublicKey {
+            fn new() -> Result<Self, crate::Error> {
+                let crt = include_str!("test_files/example.crt");
+                let key = openssl::x509::X509::from_pem(crt.as_ref())?
+        .public_key()?;
+                Ok(
+                RSAPublicKey {
+                    inner: key,
+                })
+            }
+        }
+
+        impl crate::Key for RSAPublicKey {
+            fn verify(self, verify_target: &str, signature: Vec<u8>) -> Result<bool, crate::Error> {
+                let mut verifier = Verifier::new(MessageDigest::sha256(), &self.inner)?;
+                verifier.update(verify_target.as_bytes())?;
+                Ok(verifier.verify(&signature)?)
+            }
+        }
+
+        struct MyFetcher;
+
+        impl crate::KeyFetcher for MyFetcher {
+            type Key = RSAPublicKey;
+            fn fetch<P>(_payload: &P) -> Result<Self::Key, crate::Error> 
+            where
+                P: crate::Payload,
+            {
+                Ok(RSAPublicKey::new()?)
+            }
+        }
+
+        impl From<openssl::error::ErrorStack> for crate::Error {
+            fn from(origin: openssl::error::ErrorStack) -> crate::Error {
+                crate::Error::new(origin.context(crate::ErrorKind::OpenSSLError))
+            }
+        }
+
+        let valid_self_signed_jwt = include_str!("test_files/example_jwt").trim();
+
+        let _ = crate::verify::<MyHeader, MyPayload, MyFetcher>(valid_self_signed_jwt.to_owned())?;
 
         Ok(())
     }

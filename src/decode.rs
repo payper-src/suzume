@@ -4,7 +4,7 @@ use failure::Fail;
 
 use super::{Error, ErrorKind};
 
-pub fn from_raw_jwt<'a, H, P>(jwt: &'a str) -> Result<(H, P, (&'a str, &'a str)), Error>
+pub fn from_raw_jwt<'a, H, P>(jwt: &'a str) -> Result<(H, P, (&'a str, Vec<u8>)), Error>
 where
     H: serde::de::DeserializeOwned,
     P: serde::de::DeserializeOwned,
@@ -17,13 +17,14 @@ where
 
 const DELIMITER: &str = ".";
 
-fn split_jwt(jwt: &str) -> Result<(&str, &str), Error> {
+fn split_jwt(jwt: &str) -> Result<(&str, Vec<u8>), Error> {
     let splitted = jwt.rsplitn(2, DELIMITER).collect::<Vec<&str>>();
     if splitted.len() != 2 {
         return Err(Error::from(ErrorKind::WrongToken));
-    } else {
-        Ok((splitted[1], splitted[0]))
     }
+    let signature = base64::decode_config(splitted[0], base64::URL_SAFE_NO_PAD)
+        .map_err::<Error, _>(Into::into)?;
+    Ok((splitted[1], signature))
 }
 
 fn from_decoded<H, P>(encoded: &str) -> Result<(H, P), Error>
@@ -34,9 +35,8 @@ where
     let splitted = encoded.split(DELIMITER).collect::<Vec<&str>>();
     if splitted.len() != 2 {
         return Err(Error::from(ErrorKind::WrongToken));
-    } else {
-        Ok((decode(splitted[0])?, decode(splitted[1])?))
     }
+    Ok((decode(splitted[0])?, decode(splitted[1])?))
 }
 
 fn decode<T>(s: &str) -> Result<T, Error>
@@ -69,7 +69,10 @@ mod tests {
                    .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ\
                    .SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
         let raw_verify_target = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ";
-        let raw_signature = "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+        let encoded_signature = "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+
+        let raw_signature = base64::decode_config(encoded_signature, base64::URL_SAFE_NO_PAD)
+            .map_err::<crate::Error, _>(Into::into)?;
 
         assert_eq!(super::split_jwt(jwt)?, (raw_verify_target, raw_signature));
         Ok(())

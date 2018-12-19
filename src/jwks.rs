@@ -2,18 +2,18 @@
 #[derive(Deserialize, Debug)]
 pub struct Jwk {
     #[serde(rename = "use")]
-    use_: String,
-    alg: String,
-    kty: String,
-    x5c: Vec<String>,
-    n: String,
-    e: String,
-    kid: String,
-    x5t: String,
+    pub use_: String,
+    pub alg: String,
+    pub kty: String,
+    pub x5c: Vec<String>,
+    pub n: String,
+    pub e: String,
+    pub kid: String,
+    pub x5t: String,
 }
 
 /// Json web key set type
 #[derive(Deserialize, Debug)]
 pub struct Jwks {
-    keys: Vec<Jwk>,
+    pub keys: Vec<Jwk>,
 }
