@@ -5,8 +5,9 @@ pub trait Key {
 pub trait KeyFetcher {
     type Key: Key;
 
-    fn fetch<P>(payload: &P) -> Result<Self::Key, crate::Error>
+    fn fetch<H, P>(header: &H, payload: &P) -> Result<Self::Key, crate::Error>
     where
+        H: crate::Header,
         P: crate::Payload;
 }
 
