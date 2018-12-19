@@ -12,8 +12,12 @@ pub enum ErrorKind {
     NotBefore,
     #[fail(display = "Validation Fail")]
     ValidationFail,
+    #[fail(display = "Does Not Support Kind of Algorithm: {:?}", kind)]
+    DoesNotSupportAlgorithm { kind: AlgorithmKind },
     #[fail(display = "Not Found Item: {:?}", item)]
-    NotFoundItem { item: PayloadItem },
+    NotFoundPayloadItem { item: PayloadItem },
+    #[fail(display = "Not Found Item: {:?}", item)]
+    NotFoundHeaderItem { item: HeaderItem },
     #[fail(display = "Not Found jwk's key")]
     NotFoundJwks,
     #[fail(display = "Not Found x5c")]
@@ -25,6 +29,18 @@ pub enum ErrorKind {
 #[derive(Debug)]
 pub enum PayloadItem {
     ISS,
+}
+
+#[derive(Debug)]
+pub enum HeaderItem {
+    ALG,
+    KID,
+}
+
+#[derive(Debug)]
+pub enum AlgorithmKind {
+    RS256,
+    Others,
 }
 
 impl From<reqwest::Error> for Error {

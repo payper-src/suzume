@@ -5,21 +5,25 @@ mod decode;
 mod error;
 mod key;
 mod jwks;
+mod header;
 mod payload;
+mod auth0;
 
-pub use self::error::{Error, ErrorKind, PayloadItem};
+pub use self::error::{Error, ErrorKind, PayloadItem, HeaderItem, AlgorithmKind};
 pub use self::key::{Key, KeyFetcher};
 pub use self::jwks::{Jwk, Jwks};
+pub use self::header::{Header};
 pub use self::payload::{Payload};
+pub use self::auth0::{Auth0Header, Auth0Payload, Auth0Fetcher};
 use self::decode::{from_raw_jwt};
 
 pub fn verify<H, P, F>(jwt: String) -> Result<P, Error>
 where
-    H: serde::de::DeserializeOwned,
+    H: Header + serde::de::DeserializeOwned,
     P: Payload + serde::de::DeserializeOwned,
     F: KeyFetcher,
 {
-    let (_header, payload, (plain, signature)) = from_raw_jwt::<H, P>(&jwt)?;
+    let (header, payload, (plain, signature)) = from_raw_jwt::<H, P>(&jwt)?;
 
     if payload.is_expired() {
         return Err(ErrorKind::ExpiredToken.into())
@@ -29,7 +33,7 @@ where
         return Err(ErrorKind::NotBefore.into())
     }
 
-    let key = F::fetch(&payload)?;
+    let key = F::fetch(&header, &payload)?;
     if key.verify(plain, signature)? {
         Ok(payload)
     } else {
@@ -52,6 +56,8 @@ mod tests {
         struct MyHeader {
             som: String,
         }
+
+        impl crate::Header for MyHeader {}
 
         #[derive(Debug, PartialEq, Serialize, Deserialize)]
         struct MyPayload {
@@ -81,7 +87,7 @@ mod tests {
 
         impl super::KeyFetcher for MyFetcher {
             type Key = MyKey;
-            fn fetch<P>(_: &P) -> Result<Self::Key, crate::Error> 
+            fn fetch<H, P>(_: &H, _: &P) -> Result<Self::Key, crate::Error> 
             {
                 Ok(MyKey)
             }
@@ -119,13 +125,14 @@ mod tests {
         use openssl::pkey::{self, PKey};
         use openssl::hash::MessageDigest;
         use openssl::sign::{Verifier};
-        use failure::Fail;
 
         #[derive(Debug, Serialize, Deserialize)]
         struct MyHeader {
             typ: String,
             alg: String,
         }
+
+        impl crate::Header for MyHeader {}
 
         #[derive(Debug, Serialize, Deserialize)]
         struct MyPayload {
@@ -176,17 +183,12 @@ mod tests {
 
         impl crate::KeyFetcher for MyFetcher {
             type Key = RSAPublicKey;
-            fn fetch<P>(_payload: &P) -> Result<Self::Key, crate::Error> 
+            fn fetch<H, P>(_header: &H, _payload: &P) -> Result<Self::Key, crate::Error> 
             where
+                H: crate::Header,
                 P: crate::Payload,
             {
                 Ok(RSAPublicKey::new()?)
-            }
-        }
-
-        impl From<openssl::error::ErrorStack> for crate::Error {
-            fn from(origin: openssl::error::ErrorStack) -> crate::Error {
-                crate::Error::new(origin.context(crate::ErrorKind::OpenSSLError))
             }
         }
 
