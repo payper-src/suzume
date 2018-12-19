@@ -21,11 +21,10 @@ fn split_jwt(jwt: &str) -> Result<(&str, Vec<u8>), Error> {
     let splitted = jwt.rsplitn(2, DELIMITER).collect::<Vec<&str>>();
     if splitted.len() != 2 {
         return Err(Error::from(ErrorKind::WrongToken));
-    } else {
-        let signature = base64::decode_config(splitted[0], base64::URL_SAFE_NO_PAD)
-            .map_err::<Error, _>(Into::into)?;
-        Ok((splitted[1], signature))
     }
+    let signature = base64::decode_config(splitted[0], base64::URL_SAFE_NO_PAD)
+        .map_err::<Error, _>(Into::into)?;
+    Ok((splitted[1], signature))
 }
 
 fn from_decoded<H, P>(encoded: &str) -> Result<(H, P), Error>
@@ -36,9 +35,8 @@ where
     let splitted = encoded.split(DELIMITER).collect::<Vec<&str>>();
     if splitted.len() != 2 {
         return Err(Error::from(ErrorKind::WrongToken));
-    } else {
-        Ok((decode(splitted[0])?, decode(splitted[1])?))
     }
+    Ok((decode(splitted[0])?, decode(splitted[1])?))
 }
 
 fn decode<T>(s: &str) -> Result<T, Error>
