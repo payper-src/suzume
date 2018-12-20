@@ -13,7 +13,7 @@
 //!
 //! fn main() -> Result<(), failure::Error> {
 //!     verify::<Auth0Header, Auth0Payload, _>("some.jwt.string".to_owned(), Auth0Fetcher {
-//!         issuers: vec!["your jwks issuer"],
+//!         issuer: "your jwks issuer",
 //!         jwks_fetcher: ReqwestFetcher,
 //!     })?;
 //!     Ok(())
@@ -35,7 +35,7 @@ pub struct Auth0Fetcher<'a, JF>
 where
     JF: Auth0JwksFetcher,
 {
-    pub issuers: Vec<&'a str>,
+    pub issuer: &'a str,
     pub jwks_fetcher: JF,
 }
 
@@ -122,7 +122,7 @@ where
             item: PayloadItem::ISS,
         })?;
 
-        if !self.issuers.contains(&iss.as_str()) {
+        if !self.issuer.contains(&iss.as_str()) {
             return Err(ErrorKind::NotExpectedIssuer.into());
         }
 
