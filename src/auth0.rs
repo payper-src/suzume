@@ -4,7 +4,7 @@
 //! use suzume::{verify, Auth0Header, Auth0Payload, Auth0Fetcher};
 //! fn main() -> Result<(), failure::Error> {
 //!     verify::<Auth0Header, Auth0Payload,
-//!     Auth0Fetcher>("eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Ik56WTNSa1k1UlVNelFUUkNSamxHUkRrNVJrRkNSVEl6UXpBMk5FSkJOME5EUWpkR09ESXhNZyJ9.eyJpc3MiOiJodHRwczovL3BheXBlci5hdXRoMC5jb20vIiwic3ViIjoiZ29vZ2xlLW9hdXRoMnwxMTI4MjUxMjE2ODQ3NjE3ODU2MDkiLCJhdWQiOiJtWE5TbDYyZWJHQ0lJcmVORUc3d3RCRlREYTlzdTNQRSIsImlhdCI6MTU0NDE4MzQ0MCwiZXhwIjoxMTU0NDE4MzQzOSwiYXRfaGFzaCI6IjJuVm81M2xUTW01anJ5MkhkLWp1MXciLCJub25jZSI6Ik0zNFBJVn52b3h4bEktWEVQaUtRWFNIZTBjejVpYnZDIn0.cuArVuZh2o947UabPga4ojjVktDiW4WA5GvxrDVOx0KSKyAui4qscVSoZrBfjXGHsDYnWC8GvBqqAv6G2Sb6bnWW9wKabZMQB4KKej6hik-wIt835lmEo9QJQQ7Dfy1swbQL4J7Yyo62WucH0RoCtrKUKXHHw8W5asacIAC024EuTOoBLtsTby_yMf3UeZ1GANztCw8CtDOKgvEo-O0uE0grw-OyFpEx8Cjq1Ac9M4dpHQWil9PR-Bh_bTwVSclaKio-Ex2v_6b3DPL0obipWoz13nDY-18iUqVr1HAIglpzH-nG7fBDarTjj5U-tGkLugteWC2imSjlz7rjKmXgfQ".to_owned())?;
+//!     Auth0Fetcher>("some-jwt-string".to_owned())?;
 //!     Ok(())
 //! }
 //! ```
@@ -16,7 +16,9 @@ use openssl::hash::MessageDigest;
 use openssl::pkey::{self, PKey};
 use openssl::sign::Verifier;
 
-pub struct Auth0Fetcher;
+pub struct Auth0Fetcher {
+    get: fn(url: &str) -> Result<String, _>,
+}
 
 pub struct Key {
     inner: PKey<pkey::Public>,
@@ -74,7 +76,7 @@ impl crate::Key for Key {
 
 impl crate::KeyFetcher for Auth0Fetcher {
     type Key = Key;
-    fn fetch<H, P>(header: &H, payload: &P) -> Result<Self::Key, crate::Error>
+    fn fetch<H, P>(self, header: &H, payload: &P) -> Result<Self::Key, crate::Error>
     where
         H: crate::Header,
         P: crate::Payload,
@@ -103,7 +105,7 @@ impl crate::KeyFetcher for Auth0Fetcher {
         .join("jwks.json");
         let url = url_path.to_str().ok_or(ErrorKind::FetchFailed)?;
 
-        let jwks = serde_json::from_str::<Jwks>(&reqwest::get(url)?.text()?)?;
+        let jwks = serde_json::from_str::<Jwks>(&self.get(&url)?)?;
         let key_string = jwks
             .keys
             .iter()
