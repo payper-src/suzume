@@ -24,6 +24,8 @@ pub enum ErrorKind {
     NotFoundx5c,
     #[fail(display = "Open SSL Error")]
     OpenSSLError,
+    #[fail(display = "Not Expected Issuer")]
+    NotExpectedIssuer,
     #[fail(display = "Something Happens")]
     Others,
 }
