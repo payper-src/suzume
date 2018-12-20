@@ -122,7 +122,7 @@ where
             item: PayloadItem::ISS,
         })?;
 
-        if !self.issuer.contains(&iss.as_str()) {
+        if self.issuer != iss {
             return Err(ErrorKind::NotExpectedIssuer.into());
         }
 
