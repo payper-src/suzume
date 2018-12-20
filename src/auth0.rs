@@ -1,10 +1,20 @@
 //! # For Auth0 settings
 //!
-//! ```
-//! use suzume::{verify, Auth0Header, Auth0Payload, Auth0Fetcher};
+//! ```no_run
+//! use suzume::{verify, Auth0Header, Auth0Payload, Auth0Fetcher, Auth0JwksFetcher};
+//!
+//! struct ReqwestFetcher;
+//!
+//! impl Auth0JwksFetcher for ReqwestFetcher {
+//!     fn fetch(self, url: String) -> Result<String, failure::Error> {
+//!         Ok(reqwest::get(&url)?.text()?)
+//!     }
+//! }
+//!
 //! fn main() -> Result<(), failure::Error> {
-//!     verify::<Auth0Header, Auth0Payload,
-//!     Auth0Fetcher>("some-jwt-string".to_owned())?;
+//!     verify::<Auth0Header, Auth0Payload, _>("some.jwt.string".to_owned(), Auth0Fetcher {
+//!     jwks_fetcher: ReqwestFetcher
+//!     })?;
 //!     Ok(())
 //! }
 //! ```
@@ -16,8 +26,15 @@ use openssl::hash::MessageDigest;
 use openssl::pkey::{self, PKey};
 use openssl::sign::Verifier;
 
-pub struct Auth0Fetcher {
-    get: fn(url: &str) -> Result<String, _>,
+pub trait Auth0JwksFetcher {
+    fn fetch(self, url: String) -> Result<String, failure::Error>;
+}
+
+pub struct Auth0Fetcher<JF>
+where
+    JF: Auth0JwksFetcher,
+{
+    pub jwks_fetcher: JF,
 }
 
 pub struct Key {
@@ -74,7 +91,10 @@ impl crate::Key for Key {
     }
 }
 
-impl crate::KeyFetcher for Auth0Fetcher {
+impl<JF> crate::KeyFetcher for Auth0Fetcher<JF>
+where
+    JF: Auth0JwksFetcher,
+{
     type Key = Key;
     fn fetch<H, P>(self, header: &H, payload: &P) -> Result<Self::Key, crate::Error>
     where
@@ -105,7 +125,7 @@ impl crate::KeyFetcher for Auth0Fetcher {
         .join("jwks.json");
         let url = url_path.to_str().ok_or(ErrorKind::FetchFailed)?;
 
-        let jwks = serde_json::from_str::<Jwks>(&self.get(&url)?)?;
+        let jwks = serde_json::from_str::<Jwks>(&self.jwks_fetcher.fetch(url.to_owned())?)?;
         let key_string = jwks
             .keys
             .iter()

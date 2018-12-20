@@ -9,7 +9,7 @@ mod jwks;
 mod key;
 mod payload;
 
-pub use self::auth0::{Auth0Fetcher, Auth0Header, Auth0Payload};
+pub use self::auth0::{Auth0Fetcher, Auth0Header, Auth0Payload, Auth0JwksFetcher};
 use self::decode::from_raw_jwt;
 pub use self::error::{AlgorithmKind, Error, ErrorKind, HeaderItem, PayloadItem};
 pub use self::header::Header;
@@ -17,7 +17,7 @@ pub use self::jwks::{Jwk, Jwks};
 pub use self::key::{Key, KeyFetcher};
 pub use self::payload::Payload;
 
-pub fn verify<H, P, F>(jwt: String) -> Result<P, Error>
+pub fn verify<H, P, F>(jwt: String, fetcher: F) -> Result<P, Error>
 where
     H: Header + serde::de::DeserializeOwned,
     P: Payload + serde::de::DeserializeOwned,
@@ -33,7 +33,7 @@ where
         return Err(ErrorKind::NotBefore.into());
     }
 
-    let key = F::fetch(&header, &payload)?;
+    let key = fetcher.fetch(&header, &payload)?;
     if key.verify(plain, signature)? {
         Ok(payload)
     } else {
@@ -113,7 +113,7 @@ mod tests {
             format!("{}.{}.", encoded_h, encoded_p)
         };
 
-        let payload = super::verify::<MyHeader, MyPayload, MyFetcher>(jwt)?;
+        let payload = super::verify::<MyHeader, MyPayload, _>(jwt, MyFetcher)?;
         assert_eq!(payload, my_payload);
 
         Ok(())
@@ -176,7 +176,7 @@ mod tests {
 
         impl crate::KeyFetcher for MyFetcher {
             type Key = RSAPublicKey;
-            fn fetch<H, P>(_header: &H, _payload: &P) -> Result<Self::Key, crate::Error>
+            fn fetch<H, P>(self, _header: &H, _payload: &P) -> Result<Self::Key, crate::Error>
             where
                 H: crate::Header,
                 P: crate::Payload,
@@ -187,7 +187,7 @@ mod tests {
 
         let valid_self_signed_jwt = include_str!("test_files/example_jwt").trim();
 
-        let _ = crate::verify::<MyHeader, MyPayload, MyFetcher>(valid_self_signed_jwt.to_owned())?;
+        let _ = crate::verify::<MyHeader, MyPayload, _>(valid_self_signed_jwt.to_owned(), MyFetcher)?;
 
         Ok(())
     }

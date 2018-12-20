@@ -24,6 +24,8 @@ pub enum ErrorKind {
     NotFoundx5c,
     #[fail(display = "Open SSL Error")]
     OpenSSLError,
+    #[fail(display = "Something Happens")]
+    Others,
 }
 
 #[derive(Debug)]
@@ -41,14 +43,6 @@ pub enum HeaderItem {
 pub enum AlgorithmKind {
     RS256,
     Others,
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(error: reqwest::Error) -> Error {
-        Error {
-            inner: error.context(ErrorKind::FetchFailed),
-        }
-    }
 }
 
 // #[cfg(test)]
@@ -136,4 +130,13 @@ impl From<Context<ErrorKind>> for Error {
         Error { inner }
     }
 }
+
 //end boilerplate
+
+impl From<failure::Error> for Error {
+    fn from(error: failure::Error) -> Error {
+        Error {
+            inner: error.context(ErrorKind::Others),
+        }
+    }
+}
