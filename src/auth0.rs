@@ -13,7 +13,8 @@
 //!
 //! fn main() -> Result<(), failure::Error> {
 //!     verify::<Auth0Header, Auth0Payload, _>("some.jwt.string".to_owned(), Auth0Fetcher {
-//!     jwks_fetcher: ReqwestFetcher
+//!         issuers: vec!["your jwks issuer"],
+//!         jwks_fetcher: ReqwestFetcher,
 //!     })?;
 //!     Ok(())
 //! }
@@ -30,10 +31,11 @@ pub trait Auth0JwksFetcher {
     fn fetch(self, url: String) -> Result<String, failure::Error>;
 }
 
-pub struct Auth0Fetcher<JF>
+pub struct Auth0Fetcher<'a, JF>
 where
     JF: Auth0JwksFetcher,
 {
+    pub issuers: Vec<&'a str>,
     pub jwks_fetcher: JF,
 }
 
@@ -91,7 +93,7 @@ impl crate::Key for Key {
     }
 }
 
-impl<JF> crate::KeyFetcher for Auth0Fetcher<JF>
+impl<'a, JF> crate::KeyFetcher for Auth0Fetcher<'a, JF>
 where
     JF: Auth0JwksFetcher,
 {
@@ -116,13 +118,17 @@ where
             item: HeaderItem::KID,
         })?;
 
-        let url_path = std::path::Path::new(&payload.get_iss().ok_or(Error::from(
-            ErrorKind::NotFoundPayloadItem {
-                item: PayloadItem::ISS,
-            },
-        ))?)
-        .join(".well-known")
-        .join("jwks.json");
+        let iss = payload.get_iss().ok_or(ErrorKind::NotFoundPayloadItem {
+            item: PayloadItem::ISS,
+        })?;
+
+        if !self.issuers.contains(&iss.as_str()) {
+            return Err(ErrorKind::NotExpectedIssuer.into());
+        }
+
+        let url_path = std::path::Path::new(&iss)
+            .join(".well-known")
+            .join("jwks.json");
         let url = url_path.to_str().ok_or(ErrorKind::FetchFailed)?;
 
         let jwks = serde_json::from_str::<Jwks>(&self.jwks_fetcher.fetch(url.to_owned())?)?;
