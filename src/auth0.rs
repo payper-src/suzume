@@ -27,22 +27,29 @@ use openssl::hash::MessageDigest;
 use openssl::pkey::{self, PKey};
 use openssl::sign::Verifier;
 
+/// fetch jwks.json from Auth0
 pub trait Auth0JwksFetcher {
+    /// fetch jwks.json from url
     fn fetch(self, url: String) -> Result<String, failure::Error>;
 }
 
+/// fetcher for auth0
 pub struct Auth0Fetcher<'a, JF>
 where
     JF: Auth0JwksFetcher,
 {
+    /// issuer
     pub issuer: &'a str,
+    /// jwks fetcher
     pub jwks_fetcher: JF,
 }
 
+/// decryption key
 pub struct Key {
     inner: PKey<pkey::Public>,
 }
 
+/// Auth0 jwt header
 #[derive(Debug, Deserialize)]
 pub struct Auth0Header {
     typ: String,
@@ -60,6 +67,7 @@ impl crate::Header for Auth0Header {
     }
 }
 
+/// Auth0 jwt payload
 #[derive(Debug, Deserialize)]
 pub struct Auth0Payload {
     iss: String,

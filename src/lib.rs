@@ -1,3 +1,5 @@
+//! practical jwt library
+#![deny(missing_docs)]
 #[macro_use]
 extern crate serde_derive;
 
@@ -17,6 +19,7 @@ pub use self::jwks::{Jwk, Jwks};
 pub use self::key::{Key, KeyFetcher};
 pub use self::payload::Payload;
 
+/// verify jwt and return contained payload
 pub fn verify<H, P, F>(jwt: String, fetcher: F) -> Result<P, Error>
 where
     H: Header + serde::de::DeserializeOwned,
