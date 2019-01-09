@@ -1,49 +1,81 @@
+/// kind of this library Error
 #[derive(Fail, Debug)]
 pub enum ErrorKind {
+    /// JSON parse error
     #[fail(display = "Json parse error")]
     JsonParse,
+    /// Fetch failed error
     #[fail(display = "Fetch failed error")]
     FetchFailed,
+    /// Wrong Token
     #[fail(display = "Wrong token")]
     WrongToken,
+    /// Token is expired
     #[fail(display = "Token is expired")]
     ExpiredToken,
+    /// Token has been not enable yet.
     #[fail(display = "Token has been not enable yet")]
     NotBefore,
+    /// Validation Fail
     #[fail(display = "Validation Fail")]
     ValidationFail,
+    /// Does not support kind of algorithm
     #[fail(display = "Does Not Support Kind of Algorithm: {:?}", kind)]
-    DoesNotSupportAlgorithm { kind: AlgorithmKind },
+    DoesNotSupportAlgorithm {
+        /// KInd of Algorithm
+        kind: AlgorithmKind,
+    },
+    /// Not found payload item
     #[fail(display = "Not Found Item: {:?}", item)]
-    NotFoundPayloadItem { item: PayloadItem },
+    NotFoundPayloadItem {
+        /// payload item
+        item: PayloadItem,
+    },
+    /// Not found header item
     #[fail(display = "Not Found Item: {:?}", item)]
-    NotFoundHeaderItem { item: HeaderItem },
+    NotFoundHeaderItem {
+        /// header item
+        item: HeaderItem,
+    },
+    /// Not found jwk's key
     #[fail(display = "Not Found jwk's key")]
     NotFoundJwks,
+    /// Not found x.509 Certification chain
     #[fail(display = "Not Found x5c")]
     NotFoundx5c,
+    /// Openssl error
     #[fail(display = "Open SSL Error")]
     OpenSSLError,
+    /// Not expected issuer
     #[fail(display = "Not Expected Issuer")]
     NotExpectedIssuer,
+    /// Others
     #[fail(display = "Something Happens")]
     Others,
 }
 
+/// Payload item
 #[derive(Debug)]
 pub enum PayloadItem {
+    /// issuer
     ISS,
 }
 
+/// Header item
 #[derive(Debug)]
 pub enum HeaderItem {
+    /// Algorithm
     ALG,
+    /// Key Id
     KID,
 }
 
+/// Kind of Algorithm
 #[derive(Debug)]
 pub enum AlgorithmKind {
+    /// RS256
     RS256,
+    /// Others
     Others,
 }
 
@@ -88,6 +120,7 @@ use failure::{Backtrace, Context, Fail};
 use std::fmt;
 use std::fmt::Display;
 
+/// this library Error
 #[derive(Debug)]
 pub struct Error {
     inner: Context<ErrorKind>,
@@ -110,10 +143,12 @@ impl Display for Error {
 }
 
 impl Error {
+    /// new with context
     pub fn new(inner: Context<ErrorKind>) -> Error {
         Error { inner }
     }
 
+    /// get kind of error
     pub fn kind(&self) -> &ErrorKind {
         self.inner.get_context()
     }
