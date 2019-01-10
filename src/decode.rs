@@ -10,7 +10,7 @@ where
     P: serde::de::DeserializeOwned,
 {
     let (verify_target, signature) = split_jwt(&jwt)?;
-    let (header, payload) = from_decoded(&verify_target)?;
+    let (header, payload) = from_encoded(&verify_target)?;
 
     Ok((header, payload, (verify_target, signature)))
 }
@@ -27,7 +27,7 @@ fn split_jwt(jwt: &str) -> Result<(&str, Vec<u8>), Error> {
     Ok((splitted[1], signature))
 }
 
-fn from_decoded<H, P>(encoded: &str) -> Result<(H, P), Error>
+fn from_encoded<H, P>(encoded: &str) -> Result<(H, P), Error>
 where
     H: serde::de::DeserializeOwned,
     P: serde::de::DeserializeOwned,
@@ -76,5 +76,69 @@ mod tests {
 
         assert_eq!(super::split_jwt(jwt)?, (raw_verify_target, raw_signature));
         Ok(())
+    }
+
+    #[test]
+    fn fail_split_jwt() {
+        let too_long = "too.long.jwt.token";
+        match super::split_jwt(too_long) {
+            Ok(_) => assert!(false),
+            Err(e) => {
+                match e.kind() {
+                    super::ErrorKind::WrongToken => {
+                        //OK
+                    }
+                    _ => assert!(false),
+                };
+            }
+        };
+
+        let too_short = "too.short";
+        match super::split_jwt(too_short) {
+            Ok(_) => assert!(false),
+            Err(e) => {
+                match e.kind() {
+                    super::ErrorKind::WrongToken => {
+                        //OK
+                    }
+                    _ => assert!(false),
+                };
+            }
+        };
+    }
+
+    #[test]
+    fn fail_from_encoded() {
+        #[derive(Deserialize)]
+        struct MyHeader {}
+
+        #[derive(Deserialize)]
+        struct MyPayload {}
+
+        let too_long = "too.long.string";
+        match super::from_encoded::<MyHeader, MyPayload>(too_long) {
+            Ok(_) => assert!(false),
+            Err(e) => {
+                match e.kind() {
+                    super::ErrorKind::WrongToken => {
+                        //OK
+                    }
+                    _ => assert!(false),
+                };
+            }
+        };
+
+        let too_short = "too-short";
+        match super::from_encoded::<MyHeader, MyPayload>(too_short) {
+            Ok(_) => assert!(false),
+            Err(e) => {
+                match e.kind() {
+                    super::ErrorKind::WrongToken => {
+                        //OK
+                    }
+                    _ => assert!(false),
+                };
+            }
+        };
     }
 }

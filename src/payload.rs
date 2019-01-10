@@ -33,3 +33,32 @@ pub trait Payload {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_expired_payload() {
+        use super::Payload;
+
+        struct Expired {};
+        impl super::Payload for Expired {
+            fn get_exp(&self) -> Option<i64> {
+                Some(0) // 1970-01-01T00:00:00
+            }
+        }
+        assert!(Expired {}.is_expired());
+    }
+
+    #[test]
+    fn test_not_before_payload() {
+        use super::Payload;
+
+        struct NotBefore {};
+        impl super::Payload for NotBefore {
+            fn get_nbf(&self) -> Option<i64> {
+                Some(std::i64::MAX)
+            }
+        }
+        assert!(NotBefore {}.is_not_before());
+    }
+}
