@@ -1,5 +1,5 @@
 /// kind of this library Error
-#[derive(Fail, Debug)]
+#[derive(Fail, Debug, PartialEq)]
 pub enum ErrorKind {
     /// JSON parse error
     #[fail(display = "Json parse error")]
@@ -55,14 +55,14 @@ pub enum ErrorKind {
 }
 
 /// Payload item
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PayloadItem {
     /// issuer
     ISS,
 }
 
 /// Header item
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum HeaderItem {
     /// Algorithm
     ALG,
@@ -71,7 +71,7 @@ pub enum HeaderItem {
 }
 
 /// Kind of Algorithm
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum AlgorithmKind {
     /// RS256
     RS256,
