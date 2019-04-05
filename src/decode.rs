@@ -1,9 +1,11 @@
+//! decode jwt
 extern crate base64;
 
 use failure::Fail;
 
 use super::{Error, ErrorKind};
 
+/// decode raw jwt to header,payload,plain_text,signature
 pub fn from_raw_jwt<'a, H, P>(jwt: &'a str) -> Result<(H, P, (&'a str, Vec<u8>)), Error>
 where
     H: serde::de::DeserializeOwned,
