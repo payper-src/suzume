@@ -11,7 +11,6 @@ mod key;
 mod payload;
 
 pub use self::auth0::{Auth0Fetcher, Auth0Header, Auth0JwksFetcher, Auth0Payload};
-pub use self::decode::from_raw_jwt;
 pub use self::error::{AlgorithmKind, Error, ErrorKind, HeaderItem, PayloadItem};
 pub use self::header::Header;
 pub use self::jwks::{Jwk, Jwks};
@@ -19,7 +18,8 @@ pub use self::key::{Key, KeyFetcher};
 pub use self::payload::Payload;
 
 pub mod decode;
-pub mod extract_jwt;
+
+use decode::from_raw_jwt;
 
 /// verify jwt and return contained payload
 pub fn verify<H, P, F>(jwt: String, fetcher: F) -> Result<P, Error>
