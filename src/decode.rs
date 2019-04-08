@@ -1,9 +1,11 @@
+//! decode jwt
 extern crate base64;
 
 use failure::Fail;
 
 use super::{Error, ErrorKind};
 
+/// decode raw jwt to header,payload,plain_text,signature
 pub fn from_raw_jwt<'a, H, P>(jwt: &'a str) -> Result<(H, P, (&'a str, Vec<u8>)), Error>
 where
     H: serde::de::DeserializeOwned,
@@ -13,6 +15,34 @@ where
     let (header, payload) = from_encoded(&verify_target)?;
 
     Ok((header, payload, (verify_target, signature)))
+}
+
+/// from http authroization header
+pub fn from_authorization_header<'a, H, P>(
+    authorization_header: &'a str,
+) -> Result<(H, P, (&'a str, Vec<u8>)), Error>
+where
+    H: serde::de::DeserializeOwned,
+    P: serde::de::DeserializeOwned,
+{
+    let (bearer, jwt_str) = {
+        let mut split_whitespace = authorization_header.split_whitespace();
+        let bearer = match split_whitespace.next() {
+            None => return Err(ErrorKind::WrongToken.into()),
+            Some(x) => x,
+        };
+        let jwt_str = match split_whitespace.next() {
+            None => return Err(ErrorKind::WrongToken.into()),
+            Some(x) => x,
+        };
+        (bearer, jwt_str)
+    };
+
+    if bearer != "Bearer" {
+        return Err(ErrorKind::WrongToken.into());
+    }
+
+    from_raw_jwt::<H, P>(jwt_str)
 }
 
 const DELIMITER: &str = ".";
