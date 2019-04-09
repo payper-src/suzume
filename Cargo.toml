@@ -2,7 +2,7 @@
 authors = ["IgnorantCoder <fr052123@gmail.com>", "megumish <megumish@exploitouri.st>"]
 edition = "2018"
 name = "suzume"
-version = "0.1.1"
+version = "0.1.2"
 description = "jwt library"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/payper-src/suzume"
