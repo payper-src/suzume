@@ -19,7 +19,7 @@ pub use self::payload::Payload;
 
 pub mod decode;
 
-use decode::from_raw_jwt;
+use self::decode::from_raw_jwt;
 
 /// verify jwt and return contained payload
 pub fn verify<H, P, F>(jwt: String, fetcher: F) -> Result<P, Error>
